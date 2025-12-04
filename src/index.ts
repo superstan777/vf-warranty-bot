@@ -6,37 +6,42 @@ const app = new App({
 });
 
 app.on("message", async ({ send, activity }) => {
-  console.log(activity);
-
   const userName = activity.from?.name;
-  console.log("Received message from:", userName);
-  console.log("Message:", activity.text);
+  const messageText = activity.text?.trim();
+
+  if (!userName || !messageText) {
+    await send("Unable to read message or user information.");
+    return;
+  }
 
   await send({ type: "typing" });
 
-  const response = await fetch(
-    "https://vf-warranty.vercel.app/api/pending-notes/get",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.SUPABASE_TOKEN}`,
-      },
-      body: JSON.stringify({ user_name: userName }),
-    }
-  );
-
-  const data = await response.json().catch(() => null);
-
-  console.log("Pending note response:", data);
-
-  if (data?.hasPending === true) {
-    await send(
-      `🔔 **Masz pending note!**\nID: ${data.note?.id}\nStatus: ${data.note?.status}`
+  try {
+    const response = await fetch(
+      "https://vf-warranty.vercel.app/api/pending-notes/process-message",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.SUPABASE_TOKEN}`,
+        },
+        body: JSON.stringify({
+          user_name: userName,
+          content: messageText,
+        }),
+      }
     );
-  } else {
-    await send("Nie masz żadnych pending notes 👍");
+
+    const data = await response.json().catch(() => null);
+
+    if (!data) {
+      await send("Error: no response from server.");
+      return;
+    }
+
+    await send(data.message);
+  } catch (err) {
+    console.error("Error sending request to backend:", err);
+    await send("Communication error with backend. Please try again later.");
   }
 });
-
-app.start(process.env.PORT || 3978).catch(console.error);
