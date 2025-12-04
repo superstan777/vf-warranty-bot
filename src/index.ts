@@ -1,6 +1,5 @@
 import { App } from "@microsoft/teams.apps";
 import { DevtoolsPlugin } from "@microsoft/teams.dev";
-import { processUserMessage } from "./handlers/processUserMessage";
 
 const app = new App({
   plugins: [new DevtoolsPlugin()],
@@ -8,16 +7,24 @@ const app = new App({
 
 app.on("message", async ({ send, activity }) => {
   const userName = activity.from?.name;
-  const messageText = activity.text?.trim();
-
-  if (!userName || !messageText) {
-    await send("Unable to read message or user information.");
-    return;
-  }
 
   await send({ type: "typing" });
 
-  const reply = await processUserMessage(userName, messageText);
+  const response = await fetch(
+    "https://vf-warranty.vercel.app/api/pending-notes/process-message",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.SUPABASE_TOKEN}`,
+      },
+      body: JSON.stringify({ user_name: userName, content: activity.text }),
+    }
+  );
 
-  await send(reply);
+  const data = await response.json().catch(() => null);
+
+  await send(data.message);
 });
+
+app.start(process.env.PORT || 3978).catch(console.error);
