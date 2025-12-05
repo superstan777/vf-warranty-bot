@@ -1,10 +1,11 @@
 import { App } from "@microsoft/teams.apps";
 import { DevtoolsPlugin } from "@microsoft/teams.dev";
 
-const app = new App({
-  plugins: [new DevtoolsPlugin()],
-});
+const isProd = process.env.NODE_ENV === "production";
 
+const app = new App({
+  plugins: isProd ? [] : [new DevtoolsPlugin()],
+});
 app.on("message", async ({ send, activity }) => {
   const userName = activity.from?.name;
 
